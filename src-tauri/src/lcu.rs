@@ -34,25 +34,19 @@ pub struct AdminStatus {
 pub async fn check_admin_privileges() -> Result<AdminStatus, String> {
     #[cfg(target_os = "windows")]
     {
-        // 简化的Windows管理员检查 - 通过尝试访问系统目录来判断
-        use std::fs;
+        // 使用is_elevated库检查管理员权限
+        let is_admin = is_elevated::is_elevated();
         
-        let test_path = "C:\\Windows\\System32\\drivers\\etc\\hosts";
-        match fs::metadata(test_path) {
-            Ok(_) => {
-                // 能够访问系统文件，可能有管理员权限
-                Ok(AdminStatus {
-                    is_admin: true,
-                    message: "应用可能正在以管理员权限运行".to_string(),
-                })
-            }
-            Err(_) => {
-                // 无法访问系统文件
-                Ok(AdminStatus {
-                    is_admin: false,
-                    message: "应用未以管理员权限运行，可能无法检测到英雄联盟进程".to_string(),
-                })
-            }
+        if is_admin {
+            Ok(AdminStatus {
+                is_admin: true,
+                message: "应用正在以管理员权限运行".to_string(),
+            })
+        } else {
+            Ok(AdminStatus {
+                is_admin: false,
+                message: "应用未以管理员权限运行，可能无法检测到英雄联盟进程".to_string(),
+            })
         }
     }
     

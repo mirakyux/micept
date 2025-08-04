@@ -27,3 +27,8 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
 base64 = "0.21"
 
+# Windows API 相关依赖
+[target.'cfg(windows)'.dependencies]
+is_elevated = "0.1.2"
+runas = "1.1.0"
+
