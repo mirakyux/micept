@@ -12,6 +12,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             greet,
+            lcu::check_admin_privileges,
             lcu::get_lcu_auth,
             lcu::get_summoner_info,
             lcu::get_gameflow_phase,

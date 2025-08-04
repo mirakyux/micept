@@ -1,139 +1,204 @@
+use serde::Serialize;
 use sysinfo::System;
-use serde::{Serialize, Deserialize};
-use reqwest;
+use base64::{Engine as _, engine::general_purpose};
+
+#[cfg(not(target_os = "windows"))]
+use std::process::Command;
 
 #[derive(Serialize)]
 pub struct LcuAuthInfo {
-    pub port: Option<u16>,
-    pub token: Option<String>,
-    pub base_url: Option<String>,
+    pub port: String,
+    pub token: String,
+    pub is_connected: bool,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize)]
 pub struct SummonerInfo {
-    #[serde(rename = "displayName")]
     pub display_name: String,
-    #[serde(rename = "summonerLevel")]
     pub summoner_level: u32,
-    #[serde(rename = "profileIconId")]
     pub profile_icon_id: u32,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize)]
 pub struct GameflowSession {
     pub phase: String,
 }
 
+#[derive(Serialize)]
+pub struct AdminStatus {
+    pub is_admin: bool,
+    pub message: String,
+}
+
 #[tauri::command]
-pub fn get_lcu_auth() -> LcuAuthInfo {
-    let mut sys = System::new_all();
-    sys.refresh_processes();
-    let mut port = None;
-    let mut token = None;
-    
-    for (_, process) in sys.processes() {
-        if process.name() == "LeagueClientUx.exe" {
-            let cmd = process.cmd().join(" ");
-            for arg in cmd.split_whitespace() {
-                if arg.starts_with("--app-port=") {
-                    port = arg[11..].parse().ok();
-                }
-                if arg.starts_with("--remoting-auth-token=") {
-                    token = Some(arg[23..].to_string());
-                }
+pub async fn check_admin_privileges() -> Result<AdminStatus, String> {
+    #[cfg(target_os = "windows")]
+    {
+        // 简化的Windows管理员检查 - 通过尝试访问系统目录来判断
+        use std::fs;
+        
+        let test_path = "C:\\Windows\\System32\\drivers\\etc\\hosts";
+        match fs::metadata(test_path) {
+            Ok(_) => {
+                // 能够访问系统文件，可能有管理员权限
+                Ok(AdminStatus {
+                    is_admin: true,
+                    message: "应用可能正在以管理员权限运行".to_string(),
+                })
+            }
+            Err(_) => {
+                // 无法访问系统文件
+                Ok(AdminStatus {
+                    is_admin: false,
+                    message: "应用未以管理员权限运行，可能无法检测到英雄联盟进程".to_string(),
+                })
             }
         }
     }
     
-    let base_url = port.map(|p| format!("https://127.0.0.1:{}", p));
-    LcuAuthInfo { port, token, base_url }
-}
-
-#[tauri::command]
-pub async fn get_summoner_info() -> Result<SummonerInfo, String> {
-    let auth = get_lcu_auth();
-    
-    if let (Some(base_url), Some(token)) = (auth.base_url, auth.token) {
-        let client = reqwest::Client::builder()
-            .danger_accept_invalid_certs(true)
-            .build()
-            .map_err(|e| format!("Failed to create client: {}", e))?;
+    #[cfg(not(target_os = "windows"))]
+    {
+        // 非Windows平台的简单检查
+        let output = Command::new("id")
+            .arg("-u")
+            .output()
+            .map_err(|e| format!("执行id命令失败: {}", e))?;
+            
+        let uid_str = String::from_utf8_lossy(&output.stdout);
+        let uid: u32 = uid_str.trim().parse().unwrap_or(1000);
         
-        let response = client
-            .get(&format!("{}/lol-summoner/v1/current-summoner", base_url))
-            .basic_auth("riot", Some(&token))
-            .send()
-            .await
-            .map_err(|e| format!("Request failed: {}", e))?;
-        
-        if response.status().is_success() {
-            let summoner: SummonerInfo = response
-                .json()
-                .await
-                .map_err(|e| format!("Failed to parse JSON: {}", e))?;
-            Ok(summoner)
+        let is_admin = uid == 0;
+        let message = if is_admin {
+            "应用正在以root权限运行".to_string()
         } else {
-            Err(format!("API request failed with status: {}", response.status()))
-        }
-    } else {
-        Err("LCU not found or authentication failed".to_string())
+            "应用未以root权限运行".to_string()
+        };
+        
+        Ok(AdminStatus { is_admin, message })
     }
 }
 
 #[tauri::command]
-pub async fn get_gameflow_phase() -> Result<String, String> {
-    let auth = get_lcu_auth();
+pub async fn get_lcu_auth() -> Result<LcuAuthInfo, String> {
+    let mut system = System::new_all();
+    system.refresh_processes();
     
-    if let (Some(base_url), Some(token)) = (auth.base_url, auth.token) {
-        let client = reqwest::Client::builder()
-            .danger_accept_invalid_certs(true)
-            .build()
-            .map_err(|e| format!("Failed to create client: {}", e))?;
-        
-        let response = client
-            .get(&format!("{}/lol-gameflow/v1/session", base_url))
-            .basic_auth("riot", Some(&token))
-            .send()
-            .await
-            .map_err(|e| format!("Request failed: {}", e))?;
-        
-        if response.status().is_success() {
-            let session: GameflowSession = response
-                .json()
-                .await
-                .map_err(|e| format!("Failed to parse JSON: {}", e))?;
-            Ok(session.phase)
-        } else {
-            Err(format!("API request failed with status: {}", response.status()))
+    for (_, process) in system.processes() {
+        if process.name().contains("LeagueClientUx") {
+            let cmd_line = process.cmd();
+            
+            let mut port = String::new();
+            let mut token = String::new();
+            
+            for arg in cmd_line {
+                let arg_str = arg.to_string();
+                if arg_str.starts_with("--app-port=") {
+                    port = arg_str.strip_prefix("--app-port=").unwrap_or("").to_string();
+                } else if arg_str.starts_with("--remoting-auth-token=") {
+                    token = arg_str.strip_prefix("--remoting-auth-token=").unwrap_or("").to_string();
+                }
+            }
+            
+            if !port.is_empty() && !token.is_empty() {
+                return Ok(LcuAuthInfo {
+                    port,
+                    token,
+                    is_connected: true,
+                });
+            }
         }
+    }
+    
+    Err("未找到英雄联盟客户端进程".to_string())
+}
+
+#[tauri::command]
+pub async fn get_summoner_info(port: String, token: String) -> Result<SummonerInfo, String> {
+    let client = reqwest::Client::builder()
+        .danger_accept_invalid_certs(true)
+        .build()
+        .map_err(|e| format!("创建HTTP客户端失败: {}", e))?;
+    
+    let url = format!("https://127.0.0.1:{}/lol-summoner/v1/current-summoner", port);
+    let auth = format!("riot:{}", token);
+    let auth_header = format!("Basic {}", general_purpose::STANDARD.encode(auth));
+    
+    let response = client
+        .get(&url)
+        .header("Authorization", auth_header)
+        .send()
+        .await
+        .map_err(|e| format!("请求失败: {}", e))?;
+    
+    if response.status().is_success() {
+        let summoner: serde_json::Value = response
+            .json()
+            .await
+            .map_err(|e| format!("解析JSON失败: {}", e))?;
+        
+        Ok(SummonerInfo {
+            display_name: summoner["displayName"].as_str().unwrap_or("未知").to_string(),
+            summoner_level: summoner["summonerLevel"].as_u64().unwrap_or(0) as u32,
+            profile_icon_id: summoner["profileIconId"].as_u64().unwrap_or(0) as u32,
+        })
     } else {
-        Err("LCU not found or authentication failed".to_string())
+        Err(format!("获取召唤师信息失败: {}", response.status()))
     }
 }
 
 #[tauri::command]
-pub async fn accept_match() -> Result<String, String> {
-    let auth = get_lcu_auth();
+pub async fn get_gameflow_phase(port: String, token: String) -> Result<GameflowSession, String> {
+    let client = reqwest::Client::builder()
+        .danger_accept_invalid_certs(true)
+        .build()
+        .map_err(|e| format!("创建HTTP客户端失败: {}", e))?;
     
-    if let (Some(base_url), Some(token)) = (auth.base_url, auth.token) {
-        let client = reqwest::Client::builder()
-            .danger_accept_invalid_certs(true)
-            .build()
-            .map_err(|e| format!("Failed to create client: {}", e))?;
-        
-        let response = client
-            .post(&format!("{}/lol-matchmaking/v1/ready-check/accept", base_url))
-            .basic_auth("riot", Some(&token))
-            .send()
+    let url = format!("https://127.0.0.1:{}/lol-gameflow/v1/session", port);
+    let auth = format!("riot:{}", token);
+    let auth_header = format!("Basic {}", general_purpose::STANDARD.encode(auth));
+    
+    let response = client
+        .get(&url)
+        .header("Authorization", auth_header)
+        .send()
+        .await
+        .map_err(|e| format!("请求失败: {}", e))?;
+    
+    if response.status().is_success() {
+        let session: serde_json::Value = response
+            .json()
             .await
-            .map_err(|e| format!("Request failed: {}", e))?;
+            .map_err(|e| format!("解析JSON失败: {}", e))?;
         
-        if response.status().is_success() {
-            Ok("Match accepted successfully".to_string())
-        } else {
-            Err(format!("Failed to accept match: {}", response.status()))
-        }
+        Ok(GameflowSession {
+            phase: session["phase"].as_str().unwrap_or("None").to_string(),
+        })
     } else {
-        Err("LCU not found or authentication failed".to_string())
+        Err(format!("获取游戏流程状态失败: {}", response.status()))
+    }
+}
+
+#[tauri::command]
+pub async fn accept_match(port: String, token: String) -> Result<String, String> {
+    let client = reqwest::Client::builder()
+        .danger_accept_invalid_certs(true)
+        .build()
+        .map_err(|e| format!("创建HTTP客户端失败: {}", e))?;
+    
+    let url = format!("https://127.0.0.1:{}/lol-matchmaking/v1/ready-check/accept", port);
+    let auth = format!("riot:{}", token);
+    let auth_header = format!("Basic {}", general_purpose::STANDARD.encode(auth));
+    
+    let response = client
+        .post(&url)
+        .header("Authorization", auth_header)
+        .send()
+        .await
+        .map_err(|e| format!("请求失败: {}", e))?;
+    
+    if response.status().is_success() {
+        Ok("匹配已接受".to_string())
+    } else {
+        Err(format!("接受匹配失败: {}", response.status()))
     }
 }
