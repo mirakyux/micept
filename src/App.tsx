@@ -143,6 +143,13 @@ function App() {
     return () => clearInterval(interval);
   }, [autoAccept]);
 
+  // 当检测到英雄联盟进程时自动开启自动接受功能
+  useEffect(() => {
+    if (lcuAuth && lcuAuth.is_connected) {
+      setAutoAccept(true);
+    }
+  }, [lcuAuth]);
+
   const getPhaseDisplayName = (phase: string) => {
     const phaseMap: { [key: string]: string } = {
       'None': '无',
@@ -174,14 +181,6 @@ function App() {
       {/* 头部 */}
       <div className="header">
         <h1>英雄联盟自动接受助手</h1>
-        
-        {/* 管理员权限状态 */}
-        {adminStatus && (
-          <div className={`connection-status ${adminStatus.is_admin ? 'connected' : 'disconnected'}`}>
-            <div className="status-indicator"></div>
-            <span>{adminStatus.message}</span>
-          </div>
-        )}
         
         {/* LCU连接状态 */}
         <div className={`connection-status ${lcuAuth ? 'connected' : 'disconnected'}`}>
@@ -229,31 +228,15 @@ function App() {
 
       {/* 控制面板 */}
       <div className="controls">
-        {/* 自动接受开关 */}
-        <div className="auto-accept-toggle">
-          <label className="toggle-switch">
-            <input
-              type="checkbox"
-              checked={autoAccept}
-              onChange={(e) => setAutoAccept(e.target.checked)}
-              disabled={!lcuAuth}
-            />
-            <span className="slider"></span>
-          </label>
-          <span className="toggle-label">
-            自动接受匹配 {autoAccept ? '(已开启)' : '(已关闭)'}
+        {/* 自动接受状态 */}
+        <div className="auto-accept-status">
+          <div className={`status-indicator ${autoAccept ? 'active' : 'inactive'}`}></div>
+          <span className="status-label">
+            自动接受匹配 {autoAccept ? '(已开启)' : '(等待检测到游戏)'}
           </span>
         </div>
 
         {/* 操作按钮 */}
-        <button
-          className="accept-button"
-          onClick={handleManualAccept}
-          disabled={!lcuAuth || gameflowPhase !== 'ReadyCheck'}
-        >
-          手动接受匹配
-        </button>
-
         <button
           className="refresh-button"
           onClick={refreshAll}
