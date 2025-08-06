@@ -22,6 +22,7 @@ pub fn run() {
             window.set_skip_taskbar(true).unwrap();
             let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?; 
             let menu = Menu::with_items(app, &[&quit_item])?;
+
             let _tray = TrayIconBuilder::new()
             .icon(app.default_window_icon().unwrap().clone())
             .menu(&menu)
