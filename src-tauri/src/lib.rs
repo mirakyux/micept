@@ -19,6 +19,7 @@ pub fn run() {
             let window = app.get_webview_window("main").unwrap();
             window.set_decorations(false).unwrap();
             window.set_shadow(false).unwrap();
+            window.set_skip_taskbar(true).unwrap();
             let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?; 
             let menu = Menu::with_items(app, &[&quit_item])?;
             let _tray = TrayIconBuilder::new()
