@@ -1,6 +1,11 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 mod lcu;
 use tauri::Manager;
+use tauri::tray::TrayIconBuilder;
+
+use tauri::{
+    menu::{Menu, MenuItem}
+};
 
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -14,6 +19,21 @@ pub fn run() {
             let window = app.get_webview_window("main").unwrap();
             window.set_decorations(false).unwrap();
             window.set_shadow(false).unwrap();
+            let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?; 
+            let menu = Menu::with_items(app, &[&quit_item])?;
+            let _tray = TrayIconBuilder::new()
+            .icon(app.default_window_icon().unwrap().clone())
+            .menu(&menu)
+            .on_menu_event(|app, event| match event.id.as_ref() {
+                "quit" => {
+                    println!("quit menu item was clicked");
+                    app.exit(0);
+                }
+                _ => {
+                    println!("menu item {:?} not handled", event.id);
+                }
+            })
+            .build(app)?;
 
             Ok(())
         })
