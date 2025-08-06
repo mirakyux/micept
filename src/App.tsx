@@ -17,8 +17,6 @@ function App() {
   const [gameflowPhase, setGameflowPhase] = useState<string>('None');
   const [autoRefresh] = useState<boolean>(true);
 
-
-
   // 获取LCU认证信息
   const getLcuAuth = async () => {
     try {
