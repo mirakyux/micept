@@ -4,7 +4,7 @@ use tauri::Manager;
 use tauri::tray::TrayIconBuilder;
 
 use tauri::{
-    menu::{Menu, MenuItem}
+    menu::{Menu, MenuItem, CheckMenuItem}
 };
 
 #[tauri::command]
@@ -21,16 +21,28 @@ pub fn run() {
             window.set_shadow(false).unwrap();
             window.set_skip_taskbar(true).unwrap();
             window.set_ignore_cursor_events(true).unwrap();
+            
             let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?; 
-            let menu = Menu::with_items(app, &[&quit_item])?;
+            let mouse_through_item = CheckMenuItem::with_id(app, "mouse_through", "鼠标穿透", true, true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&mouse_through_item, &quit_item])?;
 
-            let _tray = TrayIconBuilder::new()
+            let window_clone = window.clone();
+            let mouse_through_clone = mouse_through_item.clone();
+            let _tray = TrayIconBuilder::with_id("main")
             .icon(app.default_window_icon().unwrap().clone())
             .menu(&menu)
-            .on_menu_event(|app, event| match event.id.as_ref() {
+            .on_menu_event(move |_app, event| match event.id.as_ref() {
                 "quit" => {
                     println!("quit menu item was clicked");
-                    app.exit(0);
+                    std::process::exit(0);
+                }
+                "mouse_through" => {
+                    println!("mouse through menu item was clicked");
+                    let is_checked = mouse_through_clone.is_checked().unwrap_or(false);
+                    let new_state = !is_checked;
+                    let _ = mouse_through_clone.set_checked(new_state);
+                    let _ = window_clone.set_ignore_cursor_events(new_state);
+                    println!("Mouse through set to: {}", new_state);
                 }
                 _ => {
                     println!("menu item {:?} not handled", event.id);
