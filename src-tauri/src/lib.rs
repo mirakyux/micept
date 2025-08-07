@@ -59,7 +59,7 @@ pub fn run() {
                     
                     // 重新构建菜单以确保状态更新
                     if let Some(tray) = app.tray_by_id("main") {
-                        if let Ok(quit_item_new) = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>) {
+                        if let Ok(quit_item_new) = MenuItem::with_id(app, "quit", "退出", true, None::<&str>) {
                             if let Ok(mouse_through_item_new) = CheckMenuItem::with_id(app, "mouse_through", "鼠标穿透", true, new_state, None::<&str>) {
                                 if let Ok(new_menu) = Menu::with_items(app, &[&mouse_through_item_new, &quit_item_new]) {
                                     if let Err(e) = tray.set_menu(Some(new_menu)) {

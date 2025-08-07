@@ -13,7 +13,6 @@
   "app": {
     "windows": [
       {
-        "title": "micept",
         "transparent": true,
         "decorations": false,
         "resizable": false,
