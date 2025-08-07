@@ -2,6 +2,7 @@
 mod lcu;
 use tauri::Manager;
 use tauri::tray::TrayIconBuilder;
+use std::sync::{Arc, Mutex};
 
 use tauri::{
     menu::{Menu, MenuItem, CheckMenuItem}
@@ -22,26 +23,55 @@ pub fn run() {
             window.set_skip_taskbar(true).unwrap();
             window.set_ignore_cursor_events(true).unwrap();
             
+            // 使用Arc<Mutex<bool>>来跟踪鼠标穿透状态
+            let mouse_through_state = Arc::new(Mutex::new(true));
+            
             let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?; 
             let mouse_through_item = CheckMenuItem::with_id(app, "mouse_through", "鼠标穿透", true, true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&mouse_through_item, &quit_item])?;
 
             let window_clone = window.clone();
-            let mouse_through_clone = mouse_through_item.clone();
+            let state_clone = mouse_through_state.clone();
             let _tray = TrayIconBuilder::with_id("main")
             .icon(app.default_window_icon().unwrap().clone())
             .menu(&menu)
-            .on_menu_event(move |_app, event| match event.id.as_ref() {
+            .on_menu_event(move |app, event| match event.id.as_ref() {
                 "quit" => {
                     println!("quit menu item was clicked");
                     std::process::exit(0);
                 }
                 "mouse_through" => {
                     println!("mouse through menu item was clicked");
-                    let is_checked = mouse_through_clone.is_checked().unwrap_or(false);
-                    let new_state = !is_checked;
-                    let _ = mouse_through_clone.set_checked(new_state);
-                    let _ = window_clone.set_ignore_cursor_events(new_state);
+                    
+                    // 获取当前状态并切换
+                    let mut current_state = state_clone.lock().unwrap();
+                    let new_state = !*current_state;
+                    *current_state = new_state;
+                    
+                    println!("Current state: {}, New state: {}", !new_state, new_state);
+                    
+                    // 设置窗口鼠标穿透状态
+                    if let Err(e) = window_clone.set_ignore_cursor_events(new_state) {
+                        println!("Failed to set ignore cursor events: {:?}", e);
+                    } else {
+                        println!("Successfully set ignore cursor events to: {}", new_state);
+                    }
+                    
+                    // 重新构建菜单以确保状态更新
+                    if let Some(tray) = app.tray_by_id("main") {
+                        if let Ok(quit_item_new) = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>) {
+                            if let Ok(mouse_through_item_new) = CheckMenuItem::with_id(app, "mouse_through", "鼠标穿透", true, new_state, None::<&str>) {
+                                if let Ok(new_menu) = Menu::with_items(app, &[&mouse_through_item_new, &quit_item_new]) {
+                                    if let Err(e) = tray.set_menu(Some(new_menu)) {
+                                        println!("Failed to update tray menu: {:?}", e);
+                                    } else {
+                                        println!("Successfully updated tray menu");
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
                     println!("Mouse through set to: {}", new_state);
                 }
                 _ => {
