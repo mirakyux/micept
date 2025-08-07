@@ -37,11 +37,12 @@ body {
 }
 
 .phase {
+  background: rgba(50, 50, 50, 0.2);
   padding: 2px 4px;
   border-radius: 20px;
   font-weight: 600;
   text-transform: uppercase;
-  border: 1px solid #ffc107;
+  border: 1px solid #5f5f5f;
   font-size: 0.9rem;
 }
 

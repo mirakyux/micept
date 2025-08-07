@@ -109,8 +109,8 @@ function App() {
   };
 
   return (
-    <div className="app-container" data-tauri-drag-region>
-      <span className={`phase ${getPhaseClassName(gameflowPhase)}`}>
+    <div className="app-container">
+      <span className={`phase ${getPhaseClassName(gameflowPhase)}`}  data-tauri-drag-region>
         {getPhaseDisplayName(gameflowPhase)}
       </span>
     </div>
