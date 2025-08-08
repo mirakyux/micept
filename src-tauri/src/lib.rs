@@ -100,7 +100,7 @@ pub fn run() {
                 }
             })
             .build(app)?;
-
+            window.show().unwrap();
             Ok(())
         })
         .plugin(tauri_plugin_opener::init())

@@ -164,8 +164,10 @@ pub async fn get_gameflow_phase(port: String, token: String) -> Result<GameflowS
             .await
             .map_err(|e| format!("解析JSON失败: {}", e))?;
         
+        let phase = session["phase"].as_str().unwrap_or("None").to_string();
+
         Ok(GameflowSession {
-            phase: session["phase"].as_str().unwrap_or("None").to_string(),
+            phase,
         })
     } else {
         Err(format!("获取游戏流程状态失败: {}", response.status()))
