@@ -52,6 +52,11 @@
   width: 80px;
   height: 80px;
   position: relative;
+  pointer-events: none; /* 允许拖动事件穿透 */
+}
+
+.avatar-section * {
+  pointer-events: none; /* 确保所有子元素都不阻止拖动 */
 }
 
 .avatar-container {
@@ -99,6 +104,11 @@
   border-radius: 0;
   padding: 10px 15px;
   gap: 4px;
+  pointer-events: none; /* 允许拖动事件穿透 */
+}
+
+.info-panel * {
+  pointer-events: none; /* 确保所有子元素都不阻止拖动 */
 }
 
 .user-name {
@@ -304,6 +314,7 @@
   display: inline;
   vertical-align: baseline;
   margin-left: 4px;
+  pointer-events: none; /* 确保自动接受指示器不阻止拖动 */
 }
 
 @keyframes pulse {

@@ -15,6 +15,7 @@
       {
         "transparent": true,
         "decorations": false,
+        "height": 100,
         "resizable": false,
         "alwaysOnTop": true
 
