@@ -12,6 +12,8 @@ interface AppState {
     display_name: string;
     summoner_level: number;
     profile_icon_id: number;
+    xp_since_last_level: number;
+    xp_until_next_level: number;
   };
 }
 
@@ -64,6 +66,14 @@ function App() {
     };
   }, []);
 
+  // 计算经验进度百分比
+  const getXpProgress = () => {
+    if (!appState.summoner_info) return 0;
+    const { xp_since_last_level, xp_until_next_level } = appState.summoner_info;
+    const total = xp_since_last_level + xp_until_next_level;
+    return total > 0 ? (xp_since_last_level / total) * 100 : 0;
+  };
+
   const getPhaseDisplayName = (phase: string) => {
     const phaseMap: { [key: string]: string } = {
       'None': '未连接',
@@ -95,6 +105,30 @@ function App() {
       <div className="status-bar" data-tauri-drag-region>
         <div className="avatar-section">
           <div className="avatar-container">
+            <svg className="xp-progress-ring" width="64" height="64">
+              <circle
+                className="xp-progress-bg"
+                cx="32"
+                cy="32"
+                r="30"
+                fill="none"
+                stroke="rgba(201, 170, 113, 0.3)"
+                strokeWidth="2"
+              />
+              <circle
+                className="xp-progress-fill"
+                cx="32"
+                cy="32"
+                r="30"
+                fill="none"
+                stroke="#c9aa71"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeDasharray={`${2 * Math.PI * 30}`}
+                strokeDashoffset={`${2 * Math.PI * 30 * (1 - getXpProgress() / 100)}`}
+                transform="rotate(-90 32 32)"
+              />
+            </svg>
             <img 
               src={appState.summoner_info 
                 ? `https://ddragon.leagueoflegends.com/cdn/14.1.1/img/profileicon/${appState.summoner_info.profile_icon_id}.png`
@@ -116,9 +150,8 @@ function App() {
           </div>
           <div className="user-status">
             <span className="status-indicator"></span>
-            {appState.summoner_info 
-              ? '游戏中' 
-              : getPhaseDisplayName(appState.gameflow_phase)
+            {appState.gameflow_phase 
+              ? getPhaseDisplayName(appState.gameflow_phase) : "未找到"
             }
           </div>
         </div>

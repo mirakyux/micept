@@ -17,6 +17,8 @@ pub struct SummonerInfo {
     pub display_name: String,
     pub summoner_level: u32,
     pub profile_icon_id: u32,
+    pub xp_since_last_level: u32,
+    pub xp_until_next_level: u32,
 }
 
 #[derive(Serialize)]
@@ -157,6 +159,8 @@ pub async fn get_summoner_info(port: String, token: String) -> Result<SummonerIn
             display_name,
             summoner_level: summoner["summonerLevel"].as_u64().unwrap_or(0) as u32,
             profile_icon_id: summoner["profileIconId"].as_u64().unwrap_or(0) as u32,
+            xp_since_last_level: summoner["xpSinceLastLevel"].as_u64().unwrap_or(0) as u32,
+            xp_until_next_level: summoner["xpUntilNextLevel"].as_u64().unwrap_or(0) as u32,
         })
     } else {
         Err(format!("获取召唤师信息失败: {}", response.status()))
