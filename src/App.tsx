@@ -110,7 +110,9 @@ function App() {
         </div>
         <div className="info-panel">
           <div className="user-name">
-            {appState.summoner_info ? appState.summoner_info.display_name : '用户123456'}
+            {appState.summoner_info && appState.summoner_info.display_name 
+              ? appState.summoner_info.display_name 
+              : '用户123456'}
           </div>
           <div className="user-status">
             <span className="status-indicator"></span>

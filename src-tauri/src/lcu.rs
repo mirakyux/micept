@@ -130,8 +130,31 @@ pub async fn get_summoner_info(port: String, token: String) -> Result<SummonerIn
             .await
             .map_err(|e| format!("解析JSON失败: {}", e))?;
         
+        // 打印完整的召唤师信息用于调试
+        println!("完整的召唤师信息: {}", serde_json::to_string_pretty(&summoner).unwrap_or_default());
+        
+        // 优先使用 gameName，如果为空则使用 displayName
+        let display_name = if let Some(game_name) = summoner["gameName"].as_str() {
+            if !game_name.is_empty() {
+                // 如果有 tagLine，则组合显示
+                if let Some(tag_line) = summoner["tagLine"].as_str() {
+                    if !tag_line.is_empty() {
+                        format!("{}#{}", game_name, tag_line)
+                    } else {
+                        game_name.to_string()
+                    }
+                } else {
+                    game_name.to_string()
+                }
+            } else {
+                summoner["displayName"].as_str().unwrap_or("未知").to_string()
+            }
+        } else {
+            summoner["displayName"].as_str().unwrap_or("未知").to_string()
+        };
+
         Ok(SummonerInfo {
-            display_name: summoner["displayName"].as_str().unwrap_or("未知").to_string(),
+            display_name,
             summoner_level: summoner["summonerLevel"].as_u64().unwrap_or(0) as u32,
             profile_icon_id: summoner["profileIconId"].as_u64().unwrap_or(0) as u32,
         })
