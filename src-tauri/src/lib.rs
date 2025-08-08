@@ -85,6 +85,27 @@ async fn background_task(app_handle: tauri::AppHandle, state: AppState) {
                         // 如果状态发生变化，通知前端
                         if old_phase != session.phase {
                             let _ = app_handle.emit("gameflow-changed", &session.phase);
+                            
+                            // 当状态变为游戏中时，自动隐藏窗口
+                            if session.phase == "InGame" {
+                                if let Some(window) = app_handle.get_webview_window("main") {
+                                    if let Err(e) = window.hide() {
+                                        println!("隐藏窗口失败: {}", e);
+                                    } else {
+                                        println!("游戏开始，自动隐藏窗口");
+                                    }
+                                }
+                            }
+                            // 当状态从游戏中退出时，可以选择显示窗口（可选功能）
+                            else if old_phase == "InGame" && session.phase != "InGame" {
+                                if let Some(window) = app_handle.get_webview_window("main") {
+                                    if let Err(e) = window.show() {
+                                        println!("显示窗口失败: {}", e);
+                                    } else {
+                                        println!("游戏结束，自动显示窗口");
+                                    }
+                                }
+                            }
                         }
                         
                         // 自动接受匹配
