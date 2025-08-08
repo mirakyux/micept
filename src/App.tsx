@@ -100,6 +100,22 @@ function App() {
     return classMap[phase] || '';
   };
 
+  const getStatusIndicatorClass = (phase: string) => {
+    const statusMap: { [key: string]: string } = {
+      'None': 'status-none',
+      'Lobby': 'status-lobby',
+      'InProgress': 'status-inprogress',
+      'Reconnect': 'status-reconnect',
+      'Matchmaking': 'status-matchmaking',
+      'ReadyCheck': 'status-readycheck',
+      'ChampSelect': 'status-champselect',
+      'WaitingForStats': 'status-waiting',
+      'PreEndOfGame': 'status-ending',
+      'EndOfGame': 'status-ended'
+    };
+    return statusMap[phase] || 'status-default';
+  };
+
   return (
     <div className="app-container">
       <div className="status-bar" data-tauri-drag-region>
@@ -149,7 +165,7 @@ function App() {
               : '用户123456'}
           </div>
           <div className="user-status">
-            <span className="status-indicator"></span>
+            <span className={`status-indicator ${getStatusIndicatorClass(appState.gameflow_phase)}`}></span>
             {appState.gameflow_phase 
               ? getPhaseDisplayName(appState.gameflow_phase) : "未找到"
             }
