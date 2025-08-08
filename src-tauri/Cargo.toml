@@ -1,7 +1,7 @@
 [package]
 name = "micept"
 version = "0.1.0"
-description = "micept"
+description = "Micept: Auto-accept League of Legends matches, developed by mirakyux"
 authors = ["mirakyux"]
 edition = "2021"
 
@@ -26,6 +26,7 @@ sysinfo = "0.30"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
 reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
 base64 = "0.21"
+dirs = "5.0"
 
 # Windows API 相关依赖
 [target.'cfg(windows)'.dependencies]

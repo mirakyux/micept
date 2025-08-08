@@ -1,6 +1,8 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 mod lcu;
-use tauri::{Manager, Emitter};
+mod config;
+use config::AppConfig;
+use tauri::{Manager, Emitter, PhysicalPosition};
 use tauri::tray::TrayIconBuilder;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -18,17 +20,20 @@ pub struct AppState {
     pub gameflow_phase: Arc<Mutex<String>>,
     pub summoner_info: Arc<Mutex<Option<lcu::SummonerInfo>>>,
     pub is_running: Arc<Mutex<bool>>,
+    pub config: Arc<Mutex<AppConfig>>,
 }
 
 impl AppState {
     pub fn new() -> Self {
+        let config = AppConfig::load();
         Self {
-            mouse_through: Arc::new(Mutex::new(true)),
-            auto_accept: Arc::new(Mutex::new(true)),
+            mouse_through: Arc::new(Mutex::new(config.mouse_through)),
+            auto_accept: Arc::new(Mutex::new(config.auto_accept)),
             lcu_auth: Arc::new(Mutex::new(None)),
             gameflow_phase: Arc::new(Mutex::new("None".to_string())),
             summoner_info: Arc::new(Mutex::new(None)),
             is_running: Arc::new(Mutex::new(true)),
+            config: Arc::new(Mutex::new(config)),
         }
     }
 }
@@ -55,7 +60,23 @@ fn get_app_state(state: tauri::State<AppState>) -> serde_json::Value {
 #[tauri::command]
 fn set_auto_accept(state: tauri::State<AppState>, enabled: bool) -> Result<String, String> {
     *state.auto_accept.lock().unwrap() = enabled;
+    // 更新配置文件
+    state.config.lock().unwrap().update_auto_accept(enabled);
     Ok(format!("自动接受已{}", if enabled { "开启" } else { "关闭" }))
+}
+
+// 保存窗口位置
+#[tauri::command]
+fn save_window_position(state: tauri::State<AppState>, x: i32, y: i32) -> Result<String, String> {
+    state.config.lock().unwrap().update_window_position(x, y);
+    Ok("窗口位置已保存".to_string())
+}
+
+// 保存窗口可见性
+#[tauri::command]
+fn save_window_visible(state: tauri::State<AppState>, visible: bool) -> Result<String, String> {
+    state.config.lock().unwrap().update_window_visible(visible);
+    Ok(format!("窗口可见性已保存: {}", visible))
 }
 
 // 后台状态管理任务
@@ -155,17 +176,35 @@ pub fn run() {
             window.set_decorations(false).unwrap();
             window.set_shadow(false).unwrap();
             window.set_skip_taskbar(true).unwrap();
-            window.set_ignore_cursor_events(true).unwrap();
+            
+            // 从配置加载初始状态
+            let config = app_state.config.lock().unwrap();
+            let mouse_through_state = config.mouse_through;
+            let auto_accept_state = config.auto_accept;
+            let window_visible = config.window_visible;
+            
+            // 设置窗口位置
+            let position = PhysicalPosition::new(config.window_position.x, config.window_position.y);
+            if let Err(e) = window.set_position(position) {
+                println!("设置窗口位置失败: {}", e);
+            } else {
+                println!("窗口位置设置为: ({}, {})", config.window_position.x, config.window_position.y);
+            }
+            
+            // 设置鼠标穿透状态
+            window.set_ignore_cursor_events(mouse_through_state).unwrap();
+            drop(config); // 释放锁
             
             let quit_item = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?; 
-            let mouse_through_item = CheckMenuItem::with_id(app, "mouse_through", "鼠标穿透", true, true, None::<&str>)?;
-            let auto_accept_item = CheckMenuItem::with_id(app, "auto_accept", "自动接受", true, true, None::<&str>)?;
+            let mouse_through_item = CheckMenuItem::with_id(app, "mouse_through", "鼠标穿透", true, mouse_through_state, None::<&str>)?;
+            let auto_accept_item = CheckMenuItem::with_id(app, "auto_accept", "自动接受", true, auto_accept_state, None::<&str>)?;
             let menu = Menu::with_items(app, &[&mouse_through_item, &auto_accept_item, &quit_item])?;
 
             let window_clone = window.clone();
             let _state_clone = app_state.clone();
             let window_for_tray = window.clone();
             let state_for_tray = app_state.clone();
+            let state_for_menu = app_state.clone();
             
             let _tray = TrayIconBuilder::with_id("main")
             .icon(app.default_window_icon().unwrap().clone())
@@ -182,8 +221,12 @@ pub fn run() {
                         if let Ok(is_visible) = window_for_tray.is_visible() {
                             if is_visible {
                                 let _ = window_for_tray.hide();
+                                // 保存窗口可见性状态
+                                state_for_tray.config.lock().unwrap().update_window_visible(false);
                             } else {
                                 let _ = window_for_tray.show();
+                                // 保存窗口可见性状态
+                                state_for_tray.config.lock().unwrap().update_window_visible(true);
                             }
                         }
                     }
@@ -193,16 +236,19 @@ pub fn run() {
             .on_menu_event(move |app, event| match event.id.as_ref() {
                 "quit" => {
                     println!("quit menu item was clicked");
-                    *state_for_tray.is_running.lock().unwrap() = false;
+                    *state_for_menu.is_running.lock().unwrap() = false;
                     std::process::exit(0);
                 }
                 "mouse_through" => {
                     println!("mouse through menu item was clicked");
                     
                     // 获取当前状态并切换
-                    let mut current_state = state_for_tray.mouse_through.lock().unwrap();
+                    let mut current_state = state_for_menu.mouse_through.lock().unwrap();
                     let new_state = !*current_state;
                     *current_state = new_state;
+                    
+                    // 更新配置文件
+                    state_for_menu.config.lock().unwrap().update_mouse_through(new_state);
                     
                     println!("Current state: {}, New state: {}", !new_state, new_state);
                     
@@ -215,7 +261,7 @@ pub fn run() {
                     
                     // 重新构建菜单以确保状态更新
                     if let Some(tray) = app.tray_by_id("main") {
-                        let auto_accept_state = *state_for_tray.auto_accept.lock().unwrap();
+                        let auto_accept_state = *state_for_menu.auto_accept.lock().unwrap();
                         if let Ok(quit_item_new) = MenuItem::with_id(app, "quit", "退出", true, None::<&str>) {
                             if let Ok(mouse_through_item_new) = CheckMenuItem::with_id(app, "mouse_through", "鼠标穿透", true, new_state, None::<&str>) {
                                 if let Ok(auto_accept_item_new) = CheckMenuItem::with_id(app, "auto_accept", "自动接受", true, auto_accept_state, None::<&str>) {
@@ -237,15 +283,18 @@ pub fn run() {
                     println!("auto accept menu item was clicked");
                     
                     // 获取当前状态并切换
-                    let mut current_state = state_for_tray.auto_accept.lock().unwrap();
+                    let mut current_state = state_for_menu.auto_accept.lock().unwrap();
                     let new_state = !*current_state;
                     *current_state = new_state;
+                    
+                    // 更新配置文件
+                    state_for_menu.config.lock().unwrap().update_auto_accept(new_state);
                     
                     println!("Auto accept set to: {}", new_state);
                     
                     // 重新构建菜单以确保状态更新
                     if let Some(tray) = app.tray_by_id("main") {
-                        let mouse_through_state = *state_for_tray.mouse_through.lock().unwrap();
+                        let mouse_through_state = *state_for_menu.mouse_through.lock().unwrap();
                         if let Ok(quit_item_new) = MenuItem::with_id(app, "quit", "退出", true, None::<&str>) {
                             if let Ok(mouse_through_item_new) = CheckMenuItem::with_id(app, "mouse_through", "鼠标穿透", true, mouse_through_state, None::<&str>) {
                                 if let Ok(auto_accept_item_new) = CheckMenuItem::with_id(app, "auto_accept", "自动接受", true, new_state, None::<&str>) {
@@ -277,13 +326,21 @@ pub fn run() {
                 });
             });
             
-            window.show().unwrap();
+            // 根据配置决定是否显示窗口
+            if window_visible {
+                window.show().unwrap();
+            } else {
+                // 如果配置为隐藏，则不显示窗口
+                println!("根据配置，窗口保持隐藏状态");
+            }
             Ok(())
         })
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             get_app_state,
             set_auto_accept,
+            save_window_position,
+            save_window_visible,
             lcu::check_admin_privileges,
             lcu::get_lcu_auth,
             lcu::get_summoner_info,
