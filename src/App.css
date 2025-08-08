@@ -52,7 +52,7 @@
   width: 80px;
   height: 80px;
   position: relative;
-  pointer-events: none; /* 允许拖动事件穿透 */
+  pointer-events: none; /* 确保avatar-section不阻止拖动 */
 }
 
 .avatar-section * {
@@ -104,7 +104,7 @@
   border-radius: 0;
   padding: 10px 15px;
   gap: 4px;
-  pointer-events: none; /* 允许拖动事件穿透 */
+  pointer-events: none; /* 确保info-panel不阻止拖动 */
 }
 
 .info-panel * {
@@ -235,6 +235,8 @@
   padding: 0;
   background: transparent;
   width: 100vw;
+  height: 100vh;
+  pointer-events: none; /* 整个容器点击穿透 */
 }
 
 .status-bar {
@@ -253,6 +255,8 @@
   height: 80px;
   width: 300px;
   overflow: hidden;
+  pointer-events: auto; /* 只有status-bar可以接收点击事件 */
+  position: relative; /* 确保拖动区域正确 */
 }
 
 .status-bar:hover {
