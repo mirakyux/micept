@@ -45,6 +45,16 @@
   color: #888;
 }
 
+.summoner-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  margin-right: 8px;
+  border: 2px solid #c9aa71;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  flex-shrink: 0;
+}
+
 .app-container {
   display: flex;
   flex-direction: row;

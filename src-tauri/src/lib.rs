@@ -16,6 +16,7 @@ pub struct AppState {
     pub auto_accept: Arc<Mutex<bool>>,
     pub lcu_auth: Arc<Mutex<Option<lcu::LcuAuthInfo>>>,
     pub gameflow_phase: Arc<Mutex<String>>,
+    pub summoner_info: Arc<Mutex<Option<lcu::SummonerInfo>>>,
     pub is_running: Arc<Mutex<bool>>,
 }
 
@@ -26,6 +27,7 @@ impl AppState {
             auto_accept: Arc::new(Mutex::new(true)),
             lcu_auth: Arc::new(Mutex::new(None)),
             gameflow_phase: Arc::new(Mutex::new("None".to_string())),
+            summoner_info: Arc::new(Mutex::new(None)),
             is_running: Arc::new(Mutex::new(true)),
         }
     }
@@ -43,12 +45,14 @@ fn get_app_state(state: tauri::State<AppState>) -> serde_json::Value {
     let auto_accept = *state.auto_accept.lock().unwrap();
     let gameflow_phase = state.gameflow_phase.lock().unwrap().clone();
     let lcu_auth = state.lcu_auth.lock().unwrap().clone();
+    let summoner_info = state.summoner_info.lock().unwrap().clone();
     
     serde_json::json!({
         "mouse_through": mouse_through,
         "auto_accept": auto_accept,
         "gameflow_phase": gameflow_phase,
-        "lcu_connected": lcu_auth.is_some()
+        "lcu_connected": lcu_auth.is_some(),
+        "summoner_info": summoner_info
     })
 }
 
@@ -75,6 +79,16 @@ async fn background_task(app_handle: tauri::AppHandle, state: AppState) {
         match lcu::get_lcu_auth().await {
             Ok(auth) => {
                 *state.lcu_auth.lock().unwrap() = Some(auth.clone());
+                
+                // 获取召唤师信息
+                match lcu::get_summoner_info(auth.port.clone(), auth.token.clone()).await {
+                    Ok(summoner) => {
+                        *state.summoner_info.lock().unwrap() = Some(summoner);
+                    }
+                    Err(_) => {
+                        *state.summoner_info.lock().unwrap() = None;
+                    }
+                }
                 
                 // 获取游戏流程状态
                 match lcu::get_gameflow_phase(auth.port.clone(), auth.token.clone()).await {
@@ -128,6 +142,7 @@ async fn background_task(app_handle: tauri::AppHandle, state: AppState) {
             }
             Err(_) => {
                 *state.lcu_auth.lock().unwrap() = None;
+                *state.summoner_info.lock().unwrap() = None;
                 *state.gameflow_phase.lock().unwrap() = "None".to_string();
             }
         }

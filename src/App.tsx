@@ -8,6 +8,11 @@ interface AppState {
   auto_accept: boolean;
   gameflow_phase: string;
   lcu_connected: boolean;
+  summoner_info?: {
+    display_name: string;
+    summoner_level: number;
+    profile_icon_id: number;
+  };
 }
 
 function App() {
@@ -15,7 +20,8 @@ function App() {
     mouse_through: true,
     auto_accept: true,
     gameflow_phase: 'None',
-    lcu_connected: false
+    lcu_connected: false,
+    summoner_info: undefined
   });
 
   // 获取应用状态
@@ -86,11 +92,23 @@ function App() {
 
   return (
     <div className="app-container">
+      {appState.summoner_info && (
+        <img 
+          src={`https://ddragon.leagueoflegends.com/cdn/14.1.1/img/profileicon/${appState.summoner_info.profile_icon_id}.png`}
+          alt="头像"
+          className="summoner-avatar"
+          title={`${appState.summoner_info.display_name} (等级 ${appState.summoner_info.summoner_level})`}
+        />
+      )}
       <span 
         className={`phase ${getPhaseClassName(appState.gameflow_phase)}`}  
         data-tauri-drag-region
+        title={`自动接受: ${appState.auto_accept ? '开启' : '关闭'} | LCU: ${appState.lcu_connected ? '已连接' : '未连接'}`}
       >
         {getPhaseDisplayName(appState.gameflow_phase)}
+        {appState.auto_accept && appState.gameflow_phase === 'ReadyCheck' && (
+          <span className="auto-indicator"> 🤖</span>
+        )}
       </span>
     </div>
   );

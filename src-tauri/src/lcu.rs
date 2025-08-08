@@ -12,7 +12,7 @@ pub struct LcuAuthInfo {
     pub is_connected: bool,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct SummonerInfo {
     pub display_name: String,
     pub summoner_level: u32,
