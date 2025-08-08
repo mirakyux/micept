@@ -5,7 +5,7 @@ use base64::{Engine as _, engine::general_purpose};
 #[cfg(not(target_os = "windows"))]
 use std::process::Command;
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct LcuAuthInfo {
     pub port: String,
     pub token: String,

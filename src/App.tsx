@@ -1,86 +1,62 @@
 import { useState, useEffect } from 'react';
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import './App.css';
 
-interface LcuAuthInfo {
-  port: string;
-  token: string;
-  is_connected: boolean;
-}
-
-interface GameflowSession {
-  phase: string;
+interface AppState {
+  mouse_through: boolean;
+  auto_accept: boolean;
+  gameflow_phase: string;
+  lcu_connected: boolean;
 }
 
 function App() {
-  const [lcuAuth, setLcuAuth] = useState<LcuAuthInfo | null>(null);
-  const [gameflowPhase, setGameflowPhase] = useState<string>('None');
-  const [autoRefresh] = useState<boolean>(true);
+  const [appState, setAppState] = useState<AppState>({
+    mouse_through: true,
+    auto_accept: true,
+    gameflow_phase: 'None',
+    lcu_connected: false
+  });
 
-  // 获取LCU认证信息
-  const getLcuAuth = async () => {
+  // 获取应用状态
+  const getAppState = async () => {
     try {
-      const auth = await invoke<LcuAuthInfo>('get_lcu_auth');
-      setLcuAuth(auth);
-      return auth;
+      const state = await invoke<AppState>('get_app_state');
+      setAppState(state);
     } catch (err) {
-      setLcuAuth(null);
-      return null;
+      console.error('获取应用状态失败:', err);
     }
   };
 
-
-
-  // 获取游戏流程状态
-  const getGameflowPhase = async (auth: LcuAuthInfo) => {
-    try {
-      const session = await invoke<GameflowSession>('get_gameflow_phase', {
-        port: auth.port,
-        token: auth.token
-      });
-      setGameflowPhase(session.phase);
-      
-      // 自动接受匹配
-      if (session.phase === 'ReadyCheck') {
-        await acceptMatch(auth);
-      }
-    } catch (err) {
-      console.error('获取游戏流程状态失败:', err);
-      setGameflowPhase('None');
-    }
-  };
-  // 接受匹配
-  const acceptMatch = async (auth: LcuAuthInfo) => {
-    try {
-      await invoke<string>('accept_match', {
-        port: auth.port,
-        token: auth.token
-      });
-      console.log('匹配已接受');
-    } catch (err) {
-      console.error('接受匹配失败:', err);
-    }
-  };
-
-  // 初始化和定时刷新
+  // 初始化
   useEffect(() => {
-    
-    let interval: number | undefined;
-    
-    interval = setInterval(() => {
-      if (lcuAuth) {
-        getGameflowPhase(lcuAuth);
-      } else {
-        getLcuAuth();
-      }
-    }, 2000);
+    // 获取初始状态
+    getAppState();
+
+    // 监听后台状态变化事件
+    const unlistenGameflow = listen('gameflow-changed', (event) => {
+      console.log('游戏流程状态变化:', event.payload);
+      setAppState(prev => ({
+        ...prev,
+        gameflow_phase: event.payload as string
+      }));
+    });
+
+    const unlistenMatchAccepted = listen('match-accepted', (event) => {
+      console.log('匹配已自动接受:', event.payload);
+    });
+
+    // 定期更新状态（降低频率，主要用于同步状态）
+    const interval = setInterval(() => {
+      getAppState();
+    }, 5000);
 
     return () => {
-      if (interval) clearInterval(interval);
+      clearInterval(interval);
+      unlistenGameflow.then(fn => fn());
+      unlistenMatchAccepted.then(fn => fn());
     };
-  }, [autoRefresh, lcuAuth]);
-
-
+  }, []);
 
   const getPhaseDisplayName = (phase: string) => {
     const phaseMap: { [key: string]: string } = {
@@ -110,8 +86,15 @@ function App() {
 
   return (
     <div className="app-container">
-      <span className={`phase ${getPhaseClassName(gameflowPhase)}`}  data-tauri-drag-region>
-        {getPhaseDisplayName(gameflowPhase)}
+      <span 
+        className={`phase ${getPhaseClassName(appState.gameflow_phase)}`}  
+        data-tauri-drag-region
+        title={`自动接受: ${appState.auto_accept ? '开启' : '关闭'} | LCU: ${appState.lcu_connected ? '已连接' : '未连接'}`}
+      >
+        {getPhaseDisplayName(appState.gameflow_phase)}
+        {appState.auto_accept && appState.gameflow_phase === 'ReadyCheck' && (
+          <span className="auto-indicator"> 🤖</span>
+        )}
       </span>
     </div>
   );
