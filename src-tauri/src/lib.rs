@@ -32,9 +32,30 @@ pub fn run() {
 
             let window_clone = window.clone();
             let state_clone = mouse_through_state.clone();
+            let window_for_tray = window.clone();
             let _tray = TrayIconBuilder::with_id("main")
             .icon(app.default_window_icon().unwrap().clone())
             .menu(&menu)
+            .show_menu_on_left_click(false)
+            .on_tray_icon_event(move |_tray, event| {
+                match event {
+                    tauri::tray::TrayIconEvent::Click { 
+                        button: tauri::tray::MouseButton::Left,
+                        button_state: tauri::tray::MouseButtonState::Up,
+                        .. 
+                    } => {
+                        // 左键点击切换窗口显示/隐藏
+                        if let Ok(is_visible) = window_for_tray.is_visible() {
+                            if is_visible {
+                                let _ = window_for_tray.hide();
+                            } else {
+                                let _ = window_for_tray.show();
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            })
             .on_menu_event(move |app, event| match event.id.as_ref() {
                 "quit" => {
                     println!("quit menu item was clicked");
