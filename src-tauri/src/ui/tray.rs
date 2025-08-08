@@ -1,4 +1,4 @@
-use crate::state::AppState;
+use crate::core::AppState;
 use tauri::{
     menu::{Menu, MenuItem, CheckMenuItem},
     tray::TrayIconBuilder,

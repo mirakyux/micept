@@ -1,4 +1,4 @@
-use crate::state::AppState;
+use crate::core::AppState;
 use tauri::State;
 
 /// 获取当前应用状态

@@ -1,5 +1,5 @@
-use crate::config::AppConfig;
-use crate::lcu::{LcuAuthInfo, SummonerInfo};
+use crate::utils::AppConfig;
+use crate::lol::{LcuAuthInfo, SummonerInfo};
 use std::sync::{Arc, Mutex};
 
 /// 应用状态管理器

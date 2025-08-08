@@ -1,5 +1,5 @@
-use crate::state::AppState;
-use crate::lcu;
+use crate::core::AppState;
+use crate::lol;
 use tauri::{Manager, Emitter};
 use std::time::Duration;
 
@@ -16,12 +16,12 @@ pub async fn background_task(app_handle: tauri::AppHandle, state: AppState) {
         }
         
         // 尝试获取LCU认证信息
-        match lcu::get_lcu_auth().await {
+        match lol::get_lcu_auth().await {
             Ok(auth) => {
                 *state.lcu_auth.lock().unwrap() = Some(auth.clone());
                 
                 // 获取召唤师信息
-                match lcu::get_summoner_info(auth.port.clone(), auth.token.clone()).await {
+                match lol::get_summoner_info(auth.port.clone(), auth.token.clone()).await {
                     Ok(summoner) => {
                         *state.summoner_info.lock().unwrap() = Some(summoner);
                     }
@@ -31,7 +31,7 @@ pub async fn background_task(app_handle: tauri::AppHandle, state: AppState) {
                 }
                 
                 // 获取游戏流程状态
-                match lcu::get_gameflow_phase(auth.port.clone(), auth.token.clone()).await {
+                match lol::get_gameflow_phase(auth.port.clone(), auth.token.clone()).await {
                     Ok(session) => {
                         let old_phase = state.gameflow_phase.lock().unwrap().clone();
                         *state.gameflow_phase.lock().unwrap() = session.phase.clone();
@@ -64,7 +64,7 @@ pub async fn background_task(app_handle: tauri::AppHandle, state: AppState) {
                         
                         // 自动接受匹配
                         if session.phase == "ReadyCheck" && *state.auto_accept.lock().unwrap() {
-                            match lcu::accept_match(auth.port, auth.token).await {
+                            match lol::accept_match(auth.port, auth.token).await {
                                 Ok(_) => {
                                     println!("自动接受匹配成功");
                                     let _ = app_handle.emit("match-accepted", "匹配已自动接受");
