@@ -90,16 +90,6 @@ function App() {
     return phaseMap[phase] || phase;
   };
 
-  const getPhaseClassName = (phase: string) => {
-    const classMap: { [key: string]: string } = {
-      'ReadyCheck': 'readycheck',
-      'Matchmaking': 'matchmaking',
-      'ChampSelect': 'champselect',
-      'InProgress': 'inprogress'
-    };
-    return classMap[phase] || '';
-  };
-
   const getStatusIndicatorClass = (phase: string) => {
     const statusMap: { [key: string]: string } = {
       'None': 'status-none',

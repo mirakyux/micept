@@ -33,11 +33,6 @@ impl AppState {
     }
 }
 
-#[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
-
 // 获取当前应用状态
 #[tauri::command]
 fn get_app_state(state: tauri::State<AppState>) -> serde_json::Value {
@@ -287,7 +282,6 @@ pub fn run() {
         })
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
-            greet,
             get_app_state,
             set_auto_accept,
             lcu::check_admin_privileges,
