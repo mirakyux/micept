@@ -89,12 +89,8 @@ function App() {
       <span 
         className={`phase ${getPhaseClassName(appState.gameflow_phase)}`}  
         data-tauri-drag-region
-        title={`自动接受: ${appState.auto_accept ? '开启' : '关闭'} | LCU: ${appState.lcu_connected ? '已连接' : '未连接'}`}
       >
         {getPhaseDisplayName(appState.gameflow_phase)}
-        {appState.auto_accept && appState.gameflow_phase === 'ReadyCheck' && (
-          <span className="auto-indicator"> 🤖</span>
-        )}
       </span>
     </div>
   );
