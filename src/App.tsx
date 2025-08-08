@@ -92,24 +92,38 @@ function App() {
 
   return (
     <div className="app-container">
-      {appState.summoner_info && (
-        <img 
-          src={`https://ddragon.leagueoflegends.com/cdn/14.1.1/img/profileicon/${appState.summoner_info.profile_icon_id}.png`}
-          alt="头像"
-          className="summoner-avatar"
-          title={`${appState.summoner_info.display_name} (等级 ${appState.summoner_info.summoner_level})`}
-        />
-      )}
-      <span 
-        className={`phase ${getPhaseClassName(appState.gameflow_phase)}`}  
-        data-tauri-drag-region
-        title={`自动接受: ${appState.auto_accept ? '开启' : '关闭'} | LCU: ${appState.lcu_connected ? '已连接' : '未连接'}`}
-      >
-        {getPhaseDisplayName(appState.gameflow_phase)}
+      <div className="status-bar" data-tauri-drag-region>
+        <div className="avatar-section">
+          <div className="avatar-container">
+            <img 
+              src={appState.summoner_info 
+                ? `https://ddragon.leagueoflegends.com/cdn/14.1.1/img/profileicon/${appState.summoner_info.profile_icon_id}.png`
+                : 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCA1MCA1MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjUiIGN5PSIyNSIgcj0iMjUiIGZpbGw9IiMzMzMiLz4KPHN2ZyB4PSIxNSIgeT0iMTAiIHdpZHRoPSIyMCIgaGVpZ2h0PSIzMCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSIjNjY2Ij4KPHA+dGg+TTEyIDEyYzIuMjEgMCA0LTEuNzkgNC00cy0xLjc5LTQtNC00LTQgMS43OS00IDQgMS43OSA0IDQgNHptMCAyYy0yLjY3IDAtOCAxLjM0LTggNHYyaDE2di0yYzAtMi42Ni01LjMzLTQtOC00eiIvPgo8L3N2Zz4KPC9zdmc+'
+              }
+              alt="头像"
+              className="summoner-avatar"
+            />
+            <div className="avatar-level">
+              {appState.summoner_info ? appState.summoner_info.summoner_level : '等级'}
+            </div>
+          </div>
+        </div>
+        <div className="info-panel">
+          <div className="user-name">
+            {appState.summoner_info ? appState.summoner_info.display_name : '用户123456'}
+          </div>
+          <div className="user-status">
+            <span className="status-indicator"></span>
+            {appState.summoner_info 
+              ? '游戏中' 
+              : getPhaseDisplayName(appState.gameflow_phase)
+            }
+          </div>
+        </div>
         {appState.auto_accept && appState.gameflow_phase === 'ReadyCheck' && (
-          <span className="auto-indicator"> 🤖</span>
+          <span className="auto-indicator">🤖</span>
         )}
-      </span>
+      </div>
     </div>
   );
 }
