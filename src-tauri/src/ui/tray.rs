@@ -11,6 +11,7 @@ pub fn create_tray(
     app_state: &AppState,
     mouse_through_state: bool,
     auto_accept_state: bool,
+    auto_hide_state: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let quit_item = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
     let mouse_through_item = CheckMenuItem::with_id(
@@ -29,7 +30,15 @@ pub fn create_tray(
         auto_accept_state,
         None::<&str>,
     )?;
-    let menu = Menu::with_items(app, &[&mouse_through_item, &auto_accept_item, &quit_item])?;
+    let auto_hide_item = CheckMenuItem::with_id(
+        app,
+        "auto_hide",
+        "自动隐藏",
+        true,
+        auto_hide_state,
+        None::<&str>,
+    )?;
+    let menu = Menu::with_items(app, &[&mouse_through_item, &auto_accept_item, &auto_hide_item, &quit_item])?;
 
     let window = app.get_webview_window("main").unwrap();
     let window_clone = window.clone();
@@ -84,6 +93,9 @@ pub fn create_tray(
             "auto_accept" => {
                 handle_auto_accept_event(app, &state_for_menu);
             }
+            "auto_hide" => {
+                handle_auto_hide_event(app, &state_for_menu);
+            }
             _ => {
                 println!("menu item {:?} not handled", event.id);
             }
@@ -119,7 +131,7 @@ fn handle_mouse_through_event(
     }
 
     // 重新构建菜单以确保状态更新
-    update_tray_menu(app, state, new_state, *state.auto_accept.lock().unwrap());
+    update_tray_menu(app, state, new_state, *state.auto_accept.lock().unwrap(), *state.auto_hide.lock().unwrap());
 
     println!("Mouse through set to: {}", new_state);
 }
@@ -139,7 +151,25 @@ fn handle_auto_accept_event(app: &tauri::AppHandle, state: &AppState) {
     println!("Auto accept set to: {}", new_state);
 
     // 重新构建菜单以确保状态更新
-    update_tray_menu(app, state, *state.mouse_through.lock().unwrap(), new_state);
+    update_tray_menu(app, state, *state.mouse_through.lock().unwrap(), new_state, *state.auto_hide.lock().unwrap());
+}
+
+/// 处理自动隐藏菜单事件
+fn handle_auto_hide_event(app: &tauri::AppHandle, state: &AppState) {
+    println!("auto hide menu item was clicked");
+
+    // 获取当前状态并切换
+    let mut current_state = state.auto_hide.lock().unwrap();
+    let new_state = !*current_state;
+    *current_state = new_state;
+
+    // 更新配置文件
+    state.config.lock().unwrap().update_auto_hide(new_state);
+
+    println!("Auto hide set to: {}", new_state);
+
+    // 重新构建菜单以确保状态更新
+    update_tray_menu(app, state, *state.mouse_through.lock().unwrap(), *state.auto_accept.lock().unwrap(), new_state);
 }
 
 /// 更新托盘菜单
@@ -148,6 +178,7 @@ fn update_tray_menu(
     _state: &AppState,
     mouse_through_state: bool,
     auto_accept_state: bool,
+    auto_hide_state: bool,
 ) {
     if let Some(tray) = app.tray_by_id("main") {
         if let Ok(quit_item_new) = MenuItem::with_id(app, "quit", "退出", true, None::<&str>) {
@@ -167,14 +198,23 @@ fn update_tray_menu(
                     auto_accept_state,
                     None::<&str>,
                 ) {
-                    if let Ok(new_menu) = Menu::with_items(
+                    if let Ok(auto_hide_item_new) = CheckMenuItem::with_id(
                         app,
-                        &[&mouse_through_item_new, &auto_accept_item_new, &quit_item_new],
+                        "auto_hide",
+                        "自动隐藏",
+                        true,
+                        auto_hide_state,
+                        None::<&str>,
                     ) {
-                        if let Err(e) = tray.set_menu(Some(new_menu)) {
-                            println!("Failed to update tray menu: {:?}", e);
-                        } else {
-                            println!("Successfully updated tray menu");
+                        if let Ok(new_menu) = Menu::with_items(
+                            app,
+                            &[&mouse_through_item_new, &auto_accept_item_new, &auto_hide_item_new, &quit_item_new],
+                        ) {
+                            if let Err(e) = tray.set_menu(Some(new_menu)) {
+                                println!("Failed to update tray menu: {:?}", e);
+                            } else {
+                                println!("Successfully updated tray menu");
+                            }
                         }
                     }
                 }

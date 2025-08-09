@@ -14,8 +14,9 @@ pub fn run() {
             let config = app_state.config.lock().unwrap();
             let mouse_through_state = config.mouse_through;
             let auto_accept_state = config.auto_accept;
+            let auto_hide_state = config.auto_hide;
             drop(config);
-            tray::create_tray(app, &app_state, mouse_through_state, auto_accept_state)?;
+            tray::create_tray(app, &app_state, mouse_through_state, auto_accept_state, auto_hide_state)?;
             
             start_background_task(app, &app_state);
             Ok(())

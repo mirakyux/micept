@@ -140,18 +140,28 @@ pub async fn background_task(app_handle: tauri::AppHandle, state: AppState) {
                             current_interval = Duration::from_millis(500);
                         }
                         "InGame" => {
-                            // 游戏中降低频率并隐藏窗口
+                            // 游戏中降低频率
                             current_interval = Duration::from_secs(10);
-                            if let Some(window) = app_handle.get_webview_window("main") {
-                                let _ = window.hide();
+                            
+                            // 检查自动隐藏功能是否开启
+                            let auto_hide_enabled = *state.auto_hide.lock().unwrap();
+                            if auto_hide_enabled {
+                                if let Some(window) = app_handle.get_webview_window("main") {
+                                    let _ = window.hide();
+                                    println!("自动隐藏功能已开启，窗口已隐藏");
+                                }
                             }
                         }
                         _ => {
                             current_interval = base_interval;
-                            // 从游戏中退出时显示窗口
+                            // 从游戏中退出时，如果自动隐藏功能开启，则显示窗口
                             if old_phase == "InGame" {
-                                if let Some(window) = app_handle.get_webview_window("main") {
-                                    let _ = window.show();
+                                let auto_hide_enabled = *state.auto_hide.lock().unwrap();
+                                if auto_hide_enabled {
+                                    if let Some(window) = app_handle.get_webview_window("main") {
+                                        let _ = window.show();
+                                        println!("游戏结束，自动显示窗口");
+                                    }
                                 }
                             }
                         }

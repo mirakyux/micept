@@ -7,6 +7,7 @@ pub struct AppConfig {
     pub window_position: WindowPosition,
     pub mouse_through: bool,
     pub auto_accept: bool,
+    pub auto_hide: bool,
     pub window_visible: bool,
 }
 
@@ -22,6 +23,7 @@ impl Default for AppConfig {
             window_position: WindowPosition { x: -400, y: 0 }, // 默认右上角
             mouse_through: true,  // 默认开启鼠标穿透
             auto_accept: true,
+            auto_hide: false,     // 默认关闭自动隐藏
             window_visible: true,
         }
     }
@@ -112,6 +114,14 @@ impl AppConfig {
         self.window_visible = visible;
         if let Err(e) = self.save() {
             println!("保存窗口可见性失败: {}", e);
+        }
+    }
+
+    /// 更新自动隐藏状态
+    pub fn update_auto_hide(&mut self, enabled: bool) {
+        self.auto_hide = enabled;
+        if let Err(e) = self.save() {
+            println!("保存自动隐藏状态失败: {}", e);
         }
     }
 }
