@@ -1,4 +1,3 @@
-import React from 'react';
 import { useAppState } from './hooks/useAppState';
 import { StatusBar } from './components';
 import './App.css';

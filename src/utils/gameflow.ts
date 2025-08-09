@@ -1,5 +1,3 @@
-import { GameflowPhase } from '../types';
-
 // 游戏阶段显示名称映射
 export const getPhaseDisplayName = (phase: string): string => {
   const phaseMap: Record<string, string> = {
