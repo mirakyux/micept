@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo, useMemo } from 'react';
 import { SummonerInfo } from '../types';
 import { calculateXpProgress } from '../utils/gameflow';
 
@@ -6,10 +6,23 @@ interface AvatarSectionProps {
   summonerInfo?: SummonerInfo;
 }
 
-export const AvatarSection: React.FC<AvatarSectionProps> = ({ summonerInfo }) => {
-  const xpProgress = summonerInfo 
-    ? calculateXpProgress(summonerInfo.xp_since_last_level, summonerInfo.xp_until_next_level)
-    : 0;
+export const AvatarSection: React.FC<AvatarSectionProps> = memo(({ summonerInfo }) => {
+  const xpProgress = useMemo(() => {
+    return summonerInfo 
+      ? calculateXpProgress(summonerInfo.xp_since_last_level, summonerInfo.xp_until_next_level)
+      : 0;
+  }, [summonerInfo?.xp_since_last_level, summonerInfo?.xp_until_next_level]);
+
+  const avatarUrl = useMemo(() => {
+    return summonerInfo 
+      ? `https://ddragon.leagueoflegends.com/cdn/14.1.1/img/profileicon/${summonerInfo.profile_icon_id}.png`
+      : '/icon.png';
+  }, [summonerInfo?.profile_icon_id]);
+
+  const strokeDashoffset = useMemo(() => {
+    const circumference = 2 * Math.PI * 30;
+    return circumference * (1 - xpProgress / 100);
+  }, [xpProgress]);
 
   return (
     <div className="avatar-section">
@@ -33,16 +46,13 @@ export const AvatarSection: React.FC<AvatarSectionProps> = ({ summonerInfo }) =>
             stroke="#c9aa71"
             strokeWidth="2"
             strokeLinecap="round"
-            strokeDasharray={`${2 * Math.PI * 30}`}
-            strokeDashoffset={`${2 * Math.PI * 30 * (1 - xpProgress / 100)}`}
+            strokeDasharray="188.5"
+            strokeDashoffset={strokeDashoffset}
             transform="rotate(-90 32 32)"
           />
         </svg>
         <img 
-          src={summonerInfo 
-            ? `https://ddragon.leagueoflegends.com/cdn/14.1.1/img/profileicon/${summonerInfo.profile_icon_id}.png`
-            : '/icon.png'
-          }
+          src={avatarUrl}
           alt="头像"
           className="summoner-avatar"
         />
@@ -52,4 +62,4 @@ export const AvatarSection: React.FC<AvatarSectionProps> = ({ summonerInfo }) =>
       </div>
     </div>
   );
-};
+});

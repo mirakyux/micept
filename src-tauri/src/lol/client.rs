@@ -1,9 +1,11 @@
 use serde::Serialize;
-use sysinfo::System;
 use base64::{Engine as _, engine::general_purpose};
 
 #[cfg(not(target_os = "windows"))]
 use std::process::Command;
+
+#[cfg(target_os = "windows")]
+use std::process::Command as WinCommand;
 
 #[derive(Serialize, Clone)]
 pub struct LcuAuthInfo {
@@ -76,36 +78,107 @@ pub async fn check_admin_privileges() -> Result<AdminStatus, String> {
 
 #[tauri::command]
 pub async fn get_lcu_auth() -> Result<LcuAuthInfo, String> {
-    let mut system = System::new_all();
-    system.refresh_processes();
-    
-    for (_, process) in system.processes() {
-        if process.name().contains("LeagueClientUx") {
-            let cmd_line = process.cmd();
-            
+    #[cfg(target_os = "windows")]
+    {
+        // Windows平台使用tasklist命令获取进程信息，然后使用wmic获取命令行
+        let check_output = WinCommand::new("tasklist")
+            .args(&["/FI", "IMAGENAME eq LeagueClientUx.exe"])
+            .output()
+            .map_err(|e| format!("执行tasklist命令失败: {}", e))?;
+        
+        let check_str = String::from_utf8_lossy(&check_output.stdout);
+        println!("tasklist输出: {}", check_str);
+        
+        if !check_str.contains("LeagueClientUx.exe") {
+            return Err("未找到英雄联盟客户端进程".to_string());
+        }
+        
+        // 使用PowerShell的Get-Process命令获取命令行参数
+        let output = WinCommand::new("powershell")
+            .args(&["-Command", "(Get-CimInstance Win32_Process | Where-Object Name -eq 'LeagueClientUx.exe').CommandLine"])
+            .output()
+            .map_err(|e| format!("执行PowerShell命令失败: {}", e))?;
+        
+        let output_str = String::from_utf8_lossy(&output.stdout);
+        println!("PowerShell输出: {}", output_str);
+        
+        // 将所有输出合并为一行进行处理，因为命令行可能跨多行
+        let combined_output = output_str.replace('\n', " ").replace('\r', " ");
+        
+        if combined_output.contains("LeagueClientUx.exe") && combined_output.contains("--app-port=") {
             let mut port = String::new();
             let mut token = String::new();
             
-            for arg in cmd_line {
-                let arg_str = arg.to_string();
-                if arg_str.starts_with("--app-port=") {
-                    port = arg_str.strip_prefix("--app-port=").unwrap_or("").to_string();
-                } else if arg_str.starts_with("--remoting-auth-token=") {
-                    token = arg_str.strip_prefix("--remoting-auth-token=").unwrap_or("").to_string();
-                }
+            println!("开始解析命令行参数...");
+            println!("合并后的输出长度: {}", combined_output.len());
+            
+            // 使用正则表达式来精确匹配参数
+            if let Some(port_match) = combined_output.find("--app-port=") {
+                let port_start = port_match + "--app-port=".len();
+                let port_end = combined_output[port_start..].find(' ').unwrap_or(combined_output.len() - port_start);
+                port = combined_output[port_start..port_start + port_end].trim_matches('"').to_string();
+                println!("找到端口: '{}'", port);
+            }
+            
+            if let Some(token_match) = combined_output.find("--remoting-auth-token=") {
+                let token_start = token_match + "--remoting-auth-token=".len();
+                let token_end = combined_output[token_start..].find(' ').unwrap_or(combined_output.len() - token_start);
+                token = combined_output[token_start..token_start + token_end].trim_matches('"').to_string();
+                println!("找到token: '{}...'", &token[..8.min(token.len())]);
             }
             
             if !port.is_empty() && !token.is_empty() {
+                println!("成功解析LCU认证信息: port={}, token={}...", port, &token[..8.min(token.len())]);
                 return Ok(LcuAuthInfo {
                     port,
                     token,
                     is_connected: true,
                 });
+            } else {
+                println!("解析失败: port={}, token={}", port, token);
             }
         }
+        
+        Err("未找到英雄联盟客户端进程".to_string())
     }
     
-    Err("未找到英雄联盟客户端进程".to_string())
+    #[cfg(not(target_os = "windows"))]
+    {
+        // 非Windows平台使用ps命令
+        let output = Command::new("ps")
+            .args(&["aux"])
+            .output()
+            .map_err(|e| format!("执行ps命令失败: {}", e))?;
+        
+        let output_str = String::from_utf8_lossy(&output.stdout);
+        
+        for line in output_str.lines() {
+            if line.contains("LeagueClientUx") && line.contains("--app-port=") {
+                let mut port = String::new();
+                let mut token = String::new();
+                
+                // 解析命令行参数
+                let parts: Vec<&str> = line.split_whitespace().collect();
+                for part in parts {
+                    if part.starts_with("--app-port=") {
+                        port = part.strip_prefix("--app-port=").unwrap_or("").to_string();
+                    } else if part.starts_with("--remoting-auth-token=") {
+                        token = part.strip_prefix("--remoting-auth-token=").unwrap_or("").to_string();
+                    }
+                }
+                
+                if !port.is_empty() && !token.is_empty() {
+                    return Ok(LcuAuthInfo {
+                        port,
+                        token,
+                        is_connected: true,
+                    });
+                }
+            }
+        }
+        
+        Err("未找到英雄联盟客户端进程".to_string())
+    }
 }
 
 #[tauri::command]
