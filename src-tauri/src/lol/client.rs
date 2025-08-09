@@ -5,7 +5,10 @@ use base64::{Engine as _, engine::general_purpose};
 use std::process::Command;
 
 #[cfg(target_os = "windows")]
-use std::process::Command as WinCommand;
+use std::process::{Command as WinCommand, Stdio};
+
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
 
 #[derive(Serialize, Clone)]
 pub struct LcuAuthInfo {
@@ -109,59 +112,68 @@ pub async fn get_lcu_auth() -> Result<LcuAuthInfo, String> {
         // Windows平台使用tasklist命令获取进程信息，然后使用wmic获取命令行
         let check_output = WinCommand::new("tasklist")
             .args(&["/FI", "IMAGENAME eq LeagueClientUx.exe"])
+            .creation_flags(0x08000000) // CREATE_NO_WINDOW
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
             .output()
             .map_err(|e| format!("执行tasklist命令失败: {}", e))?;
         
         let check_str = String::from_utf8_lossy(&check_output.stdout);
-        println!("tasklist输出: {}", check_str);
+        eprintln!("tasklist输出: {}", check_str);
         
         if !check_str.contains("LeagueClientUx.exe") {
             return Err("未找到英雄联盟客户端进程".to_string());
         }
         
-        // 使用PowerShell的Get-Process命令获取命令行参数
+        // 使用PowerShell的Get-WmiObject命令获取命令行参数
         let output = WinCommand::new("powershell")
-            .args(&["-Command", "(Get-CimInstance Win32_Process | Where-Object Name -eq 'LeagueClientUx.exe').CommandLine"])
+            .args(&["-Command", "Get-WmiObject -Class Win32_Process -Filter \"Name='LeagueClientUx.exe'\" | Select-Object -ExpandProperty CommandLine"])
+            .creation_flags(0x08000000) // CREATE_NO_WINDOW
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
             .output()
             .map_err(|e| format!("执行PowerShell命令失败: {}", e))?;
         
         let output_str = String::from_utf8_lossy(&output.stdout);
-        println!("PowerShell输出: {}", output_str);
+        eprintln!("PowerShell输出: {}", output_str);
         
-        // 将所有输出合并为一行进行处理，因为命令行可能跨多行
-        let combined_output = output_str.replace('\n', " ").replace('\r', " ");
-        
-        if combined_output.contains("LeagueClientUx.exe") && combined_output.contains("--app-port=") {
-            let mut port = String::new();
-            let mut token = String::new();
+        // PowerShell输出的是直接的命令行字符串
+        let command_line = output_str.trim();
+        if !command_line.is_empty() && command_line.contains("LeagueClientUx.exe") {
+            eprintln!("找到命令行: {}", command_line);
             
-            println!("开始解析命令行参数...");
-            println!("合并后的输出长度: {}", combined_output.len());
-            
-            // 使用正则表达式来精确匹配参数
-            if let Some(port_match) = combined_output.find("--app-port=") {
-                let port_start = port_match + "--app-port=".len();
-                let port_end = combined_output[port_start..].find(' ').unwrap_or(combined_output.len() - port_start);
-                port = combined_output[port_start..port_start + port_end].trim_matches('"').to_string();
-                println!("找到端口: '{}'", port);
-            }
-            
-            if let Some(token_match) = combined_output.find("--remoting-auth-token=") {
-                let token_start = token_match + "--remoting-auth-token=".len();
-                let token_end = combined_output[token_start..].find(' ').unwrap_or(combined_output.len() - token_start);
-                token = combined_output[token_start..token_start + token_end].trim_matches('"').to_string();
-                println!("找到token: '{}...'", &token[..8.min(token.len())]);
-            }
-            
-            if !port.is_empty() && !token.is_empty() {
-                println!("成功解析LCU认证信息: port={}, token={}...", port, &token[..8.min(token.len())]);
-                return Ok(LcuAuthInfo {
-                    port,
-                    token,
-                    is_connected: true,
-                });
-            } else {
-                println!("解析失败: port={}, token={}", port, token);
+            if command_line.contains("--app-port=") && command_line.contains("--remoting-auth-token=") {
+                let mut port = String::new();
+                let mut token = String::new();
+                
+                eprintln!("开始解析命令行参数...");
+                
+                // 解析端口
+                if let Some(port_match) = command_line.find("--app-port=") {
+                    let port_start = port_match + "--app-port=".len();
+                    let port_end = command_line[port_start..].find(' ').unwrap_or(command_line.len() - port_start);
+                    port = command_line[port_start..port_start + port_end].trim_matches('"').to_string();
+                    eprintln!("找到端口: '{}'", port);
+                }
+                
+                // 解析token
+                if let Some(token_match) = command_line.find("--remoting-auth-token=") {
+                    let token_start = token_match + "--remoting-auth-token=".len();
+                    let token_end = command_line[token_start..].find(' ').unwrap_or(command_line.len() - token_start);
+                    token = command_line[token_start..token_start + token_end].trim_matches('"').to_string();
+                    eprintln!("找到token: '{}...'", &token[..8.min(token.len())]);
+                }
+                
+                if !port.is_empty() && !token.is_empty() {
+                    eprintln!("成功解析LCU认证信息: port={}, token={}...", port, &token[..8.min(token.len())]);
+                    return Ok(LcuAuthInfo {
+                        port,
+                        token,
+                        is_connected: true,
+                    });
+                } else {
+                    eprintln!("解析失败: port={}, token={}", port, token);
+                }
             }
         }
         

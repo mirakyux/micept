@@ -1,5 +1,5 @@
-// Prevents additional console window on Windows in release, DO NOT REMOVE!!
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+// Prevents additional console window on Windows in both debug and release modes
+#![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
 
 fn main() {
     #[cfg(target_os = "windows")]
@@ -7,7 +7,7 @@ fn main() {
         // 检查是否有管理员权限
         if !is_elevated::is_elevated() {
             // 没有管理员权限，尝试重启获取权限
-            println!("应用需要管理员权限才能正常运行，正在尝试重启...");
+            // 移除println!以避免显示控制台窗口
             
             // 获取当前可执行文件路径
             if let Ok(current_exe) = std::env::current_exe() {
@@ -18,8 +18,8 @@ fn main() {
                             // 重启成功，退出当前实例
                             std::process::exit(0);
                         }
-                        Err(e) => {
-                            eprintln!("无法以管理员权限重启应用: {}", e);
+                        Err(_) => {
+                            // 移除eprintln!以避免显示控制台窗口
                             // 继续运行，但可能功能受限
                         }
                     }

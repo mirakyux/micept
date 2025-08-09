@@ -5,6 +5,8 @@ use std::time::Duration;
 
 /// 后台状态管理任务
 pub async fn background_task(app_handle: tauri::AppHandle, state: AppState) {
+    eprintln!("后台任务已启动");
+    
     // 使用自适应间隔，根据LCU连接状态调整检查频率
     let base_interval = Duration::from_secs(3);
     let mut current_interval = base_interval;
@@ -18,6 +20,8 @@ pub async fn background_task(app_handle: tauri::AppHandle, state: AppState) {
             println!("后台任务停止");
             break;
         }
+        
+        eprintln!("后台任务运行中，检查LCU连接状态...");
         
         // 首先检查是否已有缓存的LCU认证信息
         let cached_auth = {
@@ -92,30 +96,29 @@ pub async fn background_task(app_handle: tauri::AppHandle, state: AppState) {
             }
         };
         
-        // 获取召唤师信息 - 只在必要时更新
-        let should_update_summoner = {
-            let summoner_guard = state.summoner_info.lock().unwrap();
-            summoner_guard.is_none()
-        };
-        
-        if should_update_summoner {
-            match lol::get_summoner_info(auth.port.clone(), auth.token.clone()).await {
-                Ok(summoner) => {
-                    let mut summoner_guard = state.summoner_info.lock().unwrap();
-                    let summoner_changed = match &*summoner_guard {
-                        Some(existing) => existing.display_name != summoner.display_name || existing.summoner_level != summoner.summoner_level,
-                        None => true,
-                    };
-                    
-                    if summoner_changed {
-                        *summoner_guard = Some(summoner.clone());
-                        drop(summoner_guard);
-                        let _ = app_handle.emit("summoner-info-updated", &summoner);
-                    }
+        // 获取召唤师信息 - 每次都尝试获取以确保信息是最新的
+        println!("获取召唤师信息...");
+        match lol::get_summoner_info(auth.port.clone(), auth.token.clone()).await {
+            Ok(summoner) => {
+                println!("成功获取召唤师信息: {}", summoner.display_name);
+                let mut summoner_guard = state.summoner_info.lock().unwrap();
+                let summoner_changed = match &*summoner_guard {
+                    Some(existing) => existing.display_name != summoner.display_name || existing.summoner_level != summoner.summoner_level,
+                    None => true,
+                };
+                
+                if summoner_changed {
+                    *summoner_guard = Some(summoner.clone());
+                    drop(summoner_guard);
+                    let _ = app_handle.emit("summoner-info-updated", &summoner);
+                    println!("召唤师信息已更新并发送事件");
+                } else {
+                    println!("召唤师信息无变化");
                 }
-                Err(_) => {
-                    *state.summoner_info.lock().unwrap() = None;
-                }
+            }
+            Err(e) => {
+                println!("获取召唤师信息失败: {}", e);
+                *state.summoner_info.lock().unwrap() = None;
             }
         }
         

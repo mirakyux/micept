@@ -41,7 +41,12 @@
     "windows": {
       "wix": {
         "language": "zh-CN"
+      },
+      "nsis": {
+        "displayLanguageSelector": false
       }
-    }
+    },
+    "externalBin": [],
+    "resources": []
   }
 }
