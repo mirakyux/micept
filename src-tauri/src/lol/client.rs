@@ -34,6 +34,32 @@ pub struct AdminStatus {
     pub message: String,
 }
 
+/// 验证LCU连接是否有效
+pub async fn validate_lcu_connection(port: String, token: String) -> Result<(), String> {
+    let client = reqwest::Client::builder()
+        .danger_accept_invalid_certs(true)
+        .timeout(std::time::Duration::from_secs(5))
+        .build()
+        .map_err(|e| format!("创建HTTP客户端失败: {}", e))?;
+    
+    let url = format!("https://127.0.0.1:{}/lol-summoner/v1/current-summoner", port);
+    let auth = format!("riot:{}", token);
+    let auth_header = format!("Basic {}", general_purpose::STANDARD.encode(auth));
+    
+    let response = client
+        .get(&url)
+        .header("Authorization", auth_header)
+        .send()
+        .await
+        .map_err(|e| format!("验证LCU连接失败: {}", e))?;
+    
+    if response.status().is_success() {
+        Ok(())
+    } else {
+        Err(format!("LCU连接验证失败，状态码: {}", response.status()))
+    }
+}
+
 #[tauri::command]
 pub async fn check_admin_privileges() -> Result<AdminStatus, String> {
     #[cfg(target_os = "windows")]
