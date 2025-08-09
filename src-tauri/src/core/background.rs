@@ -78,6 +78,7 @@ pub async fn background_task(app_handle: tauri::AppHandle, state: AppState) {
                         
                         // 只有状态真正改变时才更新
                         if old_phase != session.phase {
+                            println!("游戏状态变化: {} -> {}", old_phase, session.phase);
                             *state.gameflow_phase.lock().unwrap() = session.phase.clone();
                             let _ = app_handle.emit("gameflow-changed", &session.phase);
                             
@@ -107,14 +108,23 @@ pub async fn background_task(app_handle: tauri::AppHandle, state: AppState) {
                         }
                         
                         // 自动接受匹配
-                        if session.phase == "ReadyCheck" && *state.auto_accept.lock().unwrap() {
-                            match lol::accept_match(auth.port, auth.token).await {
-                                Ok(_) => {
-                                    let _ = app_handle.emit("match-accepted", "匹配已自动接受");
+                        if session.phase == "ReadyCheck" {
+                            let auto_accept_enabled = *state.auto_accept.lock().unwrap();
+                            println!("检测到ReadyCheck状态，自动接受开关: {}", auto_accept_enabled);
+                            
+                            if auto_accept_enabled {
+                                println!("尝试自动接受匹配...");
+                                match lol::accept_match(auth.port, auth.token).await {
+                                    Ok(_) => {
+                                        println!("匹配已自动接受");
+                                        let _ = app_handle.emit("match-accepted", "匹配已自动接受");
+                                    }
+                                    Err(e) => {
+                                        eprintln!("自动接受匹配失败: {}", e);
+                                    }
                                 }
-                                Err(e) => {
-                                    eprintln!("自动接受匹配失败: {}", e);
-                                }
+                            } else {
+                                println!("自动接受功能已关闭，跳过自动接受");
                             }
                         }
                     }
