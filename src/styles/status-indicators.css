@@ -1,0 +1,72 @@
+/* Status Indicator Styles */
+.status-indicator {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #00bfff;
+  margin-right: 6px;
+  flex-shrink: 0;
+  transition: background-color 0.3s ease;
+}
+
+/* 状态指示器颜色 */
+.status-indicator.status-none {
+  background: #888888; /* 灰色 - 未连接 */
+}
+
+.status-indicator.status-lobby {
+  background: #28a745; /* 绿色 - 大厅 */
+}
+
+.status-indicator.status-inprogress {
+  background: #007bff; /* 蓝色 - 游戏中 */
+}
+
+.status-indicator.status-reconnect {
+  background: #dc3545; /* 红色 - 重连 */
+}
+
+.status-indicator.status-matchmaking {
+  background: #ffc107; /* 黄色 - 匹配中 */
+}
+
+.status-indicator.status-readycheck {
+  background: #fd7e14; /* 橙色 - 准备检查 */
+  animation: pulse-indicator 1s infinite;
+}
+
+.status-indicator.status-champselect {
+  background: #20c997; /* 青绿色 - 英雄选择 */
+}
+
+.status-indicator.status-waiting {
+  background: #6f42c1; /* 紫色 - 等待结算 */
+}
+
+.status-indicator.status-ending {
+  background: #e83e8c; /* 粉色 - 游戏结束前 */
+}
+
+.status-indicator.status-ended {
+  background: #6c757d; /* 深灰色 - 游戏结束 */
+}
+
+.status-indicator.status-default {
+  background: #17a2b8; /* 青色 - 默认/其他状态 */
+}
+
+@keyframes pulse-indicator {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.2);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
