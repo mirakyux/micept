@@ -40,6 +40,9 @@ incremental = true # Compile your binary in smaller steps.
 [profile.release]
 codegen-units = 1 # Allows LLVM to perform better optimization.
 lto = true # Enables link-time-optimizations.
-opt-level = "s" # Prioritizes small binary size. Use `3` if you prefer speed.
+opt-level = "z" # Optimize for size (more aggressive than "s")
 panic = "abort" # Higher performance by disabling panic handlers.
 strip = true # Ensures debug symbols are removed.
+overflow-checks = false # Disable overflow checks for smaller size
+debug = false # Disable debug info completely
+rpath = false # Disable rpath for smaller size
