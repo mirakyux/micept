@@ -6,6 +6,7 @@ use tauri::State;
 pub fn get_app_state(state: State<AppState>) -> serde_json::Value {
     let mouse_through = *state.mouse_through.lock().unwrap();
     let auto_accept = *state.auto_accept.lock().unwrap();
+    let auto_hide = *state.auto_hide.lock().unwrap();
     let gameflow_phase = state.gameflow_phase.lock().unwrap().clone();
     let lcu_auth = state.lcu_auth.lock().unwrap().clone();
     let summoner_info = state.summoner_info.lock().unwrap().clone();
@@ -13,6 +14,7 @@ pub fn get_app_state(state: State<AppState>) -> serde_json::Value {
     serde_json::json!({
         "mouse_through": mouse_through,
         "auto_accept": auto_accept,
+        "auto_hide": auto_hide,
         "gameflow_phase": gameflow_phase,
         "lcu_connected": lcu_auth.is_some(),
         "summoner_info": summoner_info
