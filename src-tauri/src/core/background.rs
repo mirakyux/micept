@@ -148,11 +148,18 @@ pub async fn background_task(app_handle: tauri::AppHandle, state: AppState) {
                             
                             // 检查自动隐藏功能是否开启
                             let auto_hide_enabled = *state.auto_hide.lock().unwrap();
+                            println!("游戏开始 - 自动隐藏状态: {}", auto_hide_enabled);
                             if auto_hide_enabled {
                                 if let Some(window) = app_handle.get_webview_window("main") {
-                                    let _ = window.hide();
-                                    println!("自动隐藏功能已开启，窗口已隐藏");
+                                    match window.hide() {
+                                        Ok(_) => println!("✓ 自动隐藏功能已开启，窗口已成功隐藏"),
+                                        Err(e) => println!("✗ 隐藏窗口失败: {:?}", e),
+                                    }
+                                } else {
+                                    println!("✗ 无法获取主窗口");
                                 }
+                            } else {
+                                println!("自动隐藏功能已关闭，窗口保持显示");
                             }
                         }
                         _ => {
@@ -160,11 +167,18 @@ pub async fn background_task(app_handle: tauri::AppHandle, state: AppState) {
                             // 从游戏中退出时，如果自动隐藏功能开启，则显示窗口
                             if old_phase == "InGame" {
                                 let auto_hide_enabled = *state.auto_hide.lock().unwrap();
+                                println!("游戏结束 - 自动隐藏状态: {}", auto_hide_enabled);
                                 if auto_hide_enabled {
                                     if let Some(window) = app_handle.get_webview_window("main") {
-                                        let _ = window.show();
-                                        println!("游戏结束，自动显示窗口");
+                                        match window.show() {
+                                            Ok(_) => println!("✓ 游戏结束，窗口已成功显示"),
+                                            Err(e) => println!("✗ 显示窗口失败: {:?}", e),
+                                        }
+                                    } else {
+                                        println!("✗ 无法获取主窗口");
                                     }
+                                } else {
+                                    println!("自动隐藏功能已关闭，窗口状态不变");
                                 }
                             }
                         }
