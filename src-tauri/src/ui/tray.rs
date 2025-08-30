@@ -50,7 +50,7 @@ pub fn create_tray(
         .icon(app.default_window_icon().unwrap().clone())
         .menu(&menu)
         .show_menu_on_left_click(false)
-        .on_tray_icon_event(move |_tray, event| {
+        .on_tray_icon_event(move |tray, event| {
             match event {
                 tauri::tray::TrayIconEvent::Click {
                     button: tauri::tray::MouseButton::Left,
@@ -75,6 +75,25 @@ pub fn create_tray(
                                 .lock()
                                 .unwrap()
                                 .update_window_visible(true);
+                        }
+                        
+                        // 手动切换窗口时，自动关闭auto_hide功能
+                        let current_auto_hide = *state_for_tray.auto_hide.lock().unwrap();
+                        if current_auto_hide {
+                            println!("Manual window toggle detected, disabling auto_hide");
+                            *state_for_tray.auto_hide.lock().unwrap() = false;
+                            // 更新配置文件
+                            state_for_tray.config.lock().unwrap().update_auto_hide(false);
+                            
+                            // 更新托盘菜单以反映auto_hide状态变化
+                            let app_handle = tray.app_handle();
+                            update_tray_menu(
+                                &app_handle,
+                                &state_for_tray,
+                                *state_for_tray.mouse_through.lock().unwrap(),
+                                *state_for_tray.auto_accept.lock().unwrap(),
+                                false, // auto_hide现在为false
+                            );
                         }
                     }
                 }
