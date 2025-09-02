@@ -142,7 +142,7 @@ pub async fn background_task(app_handle: tauri::AppHandle, state: AppState) {
                             // 在准备检查阶段提高频率
                             current_interval = Duration::from_millis(500);
                         }
-                        "InGame" => {
+                        "InProgress" => {
                             // 游戏中降低频率
                             current_interval = Duration::from_secs(10);
                             
@@ -165,7 +165,7 @@ pub async fn background_task(app_handle: tauri::AppHandle, state: AppState) {
                         _ => {
                             current_interval = base_interval;
                             // 从游戏中退出时，如果自动隐藏功能开启，则显示窗口
-                            if old_phase == "InGame" {
+                            if old_phase == "InProgress" {
                                 let auto_hide_enabled = *state.auto_hide.lock().unwrap();
                                 println!("游戏结束 - 自动隐藏状态: {}", auto_hide_enabled);
                                 if auto_hide_enabled {
